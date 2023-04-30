@@ -23,6 +23,24 @@ PLAYLIST_ID_URL = ''
 #＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
 
 
+#ひらがなとカタカナの相互変換、アルファベットの変換をした単語のリストを生成する関数
+def word_trans(word):
+    words = [word]
+    #カタカナからひらがなへの辞書
+    katakana_to_hiragana_dict = {chr(i): chr(i - 96) for i in range(ord('ァ'), ord('ヺ'))}
+    #ひらがなからカタカナへの辞書
+    hiragana_to_katakana_dict = {chr(i): chr(i + 96) for i in range(ord('ぁ'), ord('ゖ'))}
+    #カタカナからひらがなに変換
+    words.append(''.join([katakana_to_hiragana_dict.get(c, c) for c in word]))
+    #ひらがなからカタカナに変換
+    words.append(''.join([hiragana_to_katakana_dict.get(c, c) for c in word]))
+    #アルファベットについての変換
+    words.append(word.capitalize())
+    words.append(word.upper())
+    words.append(word.lower())
+    #リストの要素で重複しているのは消す
+    return list(set(words))
+
 #動画の概要欄の料理の材料と分量が書いてあるところを抽出する関数
 def ingredient(*args):
     #下のワードで料理の材料と分量が書かれているところかを判定する
@@ -33,10 +51,8 @@ def ingredient(*args):
     for part in args:
         key_judge = False
         #料理の材料と分量が書かれているところかをグラムの表記があるかでも判定する
-        if "g" in part:
-            g_id = part.find(part)
-            if part[g_id-1].isnumeric():
-                key_judge = True
+        if re.findall("\dg|\dｇ", part):
+            key_judge = True
         if not key_judge:
             for word in ok_key:
                 if word in part:
@@ -168,11 +184,19 @@ while while_count > 0:
             elif word == ')':
                 judge += ') '
             else:
-                word_judge[word] = True
-                if space:
-                    judge += " * word_judge['" + word + "']"
-                else:
-                    judge += "word_judge['" + word + "']"
+                words = word_trans(word)
+                for word_i in words:
+                    word_judge[word_i] = True
+                    if words[0] == word_i:
+                        if space:
+                            judge += ' * ('
+                        else:
+                            judge += '('
+                    judge += "word_judge['" + word_i + "']"
+                    if words[-1] == word_i:
+                        judge += ')'
+                    else:
+                        judge += ' + '
                 space = True
             if close > 0:
                 close += 1

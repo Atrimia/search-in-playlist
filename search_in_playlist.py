@@ -16,8 +16,8 @@ import webbrowser
 #＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
 
 #APIキーと、再生リストID or 再生リストのURLの保存用（空のままだと実行時に入力になる）
-API_KEY = 'AIzaSyA7V-pHI6iI9Py7m9fBmjyFQ6zg6aBi3o4'
-PLAYLIST_ID_URL = 'PLjvBSsqg_yu8WKk4lwiggdV9LPIn_DB5P'
+API_KEY = ''
+PLAYLIST_ID_URL = ''
 
 #＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
 

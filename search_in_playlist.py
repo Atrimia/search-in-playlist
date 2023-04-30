@@ -16,11 +16,29 @@ import webbrowser
 #＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
 
 #APIキーと、再生リストID or 再生リストのURLの保存用（空のままだと実行時に入力になる）
-API_KEY = ''
-PLAYLIST_ID_URL = ''
+API_KEY = 'AIzaSyA7V-pHI6iI9Py7m9fBmjyFQ6zg6aBi3o4'
+PLAYLIST_ID_URL = 'PLjvBSsqg_yu8WKk4lwiggdV9LPIn_DB5P'
 
 #＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊＊
 
+
+#ひらがなとカタカナの相互変換、アルファベットの変換をした単語のリストを生成する関数
+def word_trans(word):
+    words = [word]
+    #カタカナからひらがなへの辞書
+    katakana_to_hiragana_dict = {chr(i): chr(i - 96) for i in range(ord('ァ'), ord('ヺ'))}
+    #ひらがなからカタカナへの辞書
+    hiragana_to_katakana_dict = {chr(i): chr(i + 96) for i in range(ord('ぁ'), ord('ゖ'))}
+    #カタカナからひらがなに変換
+    words.append(''.join([katakana_to_hiragana_dict.get(c, c) for c in word]))
+    #ひらがなからカタカナに変換
+    words.append(''.join([hiragana_to_katakana_dict.get(c, c) for c in word]))
+    #アルファベットについての変換
+    words.append(word.capitalize())
+    words.append(word.upper())
+    words.append(word.lower())
+    #リストの要素で重複しているのは消す
+    return list(set(words))
 
 #検索にヒットした時の処理をする関数
 def hit(**kwargs):
@@ -133,11 +151,19 @@ while while_count > 0:
             elif word == ')':
                 judge += ') '
             else:
-                word_judge[word] = True
-                if space:
-                    judge += " * word_judge['" + word + "']"
-                else:
-                    judge += "word_judge['" + word + "']"
+                words = word_trans(word)
+                for word_i in words:
+                    word_judge[word_i] = True
+                    if words[0] == word_i:
+                        if space:
+                            judge += ' * ('
+                        else:
+                            judge += '('
+                    judge += "word_judge['" + word_i + "']"
+                    if words[-1] == word_i:
+                        judge += ')'
+                    else:
+                        judge += ' + '
                 space = True
             if close > 0:
                 close += 1

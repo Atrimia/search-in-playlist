@@ -24,6 +24,14 @@ PLAYLIST_ID_URL = ''
 
 #ひらがなとカタカナの相互変換、アルファベットの変換をした単語のリストを生成する関数
 def word_trans(word):
+    #検索したいワードを得るため
+    word = word.replace('[ttl]', '')
+    word = word.replace('[title]', '')
+    word = word.replace('[ch]', '')
+    word = word.replace('[channel]', '')
+    word = word.replace('[desc]', '')
+    word = word.replace('[description]', '')
+    
     words = [word]
     #カタカナからひらがなへの辞書
     katakana_to_hiragana_dict = {chr(i): chr(i - 96) for i in range(ord('ァ'), ord('ヺ'))}
@@ -81,9 +89,12 @@ def html_file(body):
 
 while_count = 1
 judge = ''
-space = False
+space_flag = False
 close = 0
 word_judge = {}
+word_judge_ttl = {}
+word_judge_ch = {}
+word_judge_desc = {}
 nextPageToken = ''
 item_count = 0
 hit_count = 0
@@ -116,6 +127,9 @@ while while_count > 0:
         print('---検索演算子の説明---')
         print('【AND検索：「 」(スペース) or「AND」or「+」(半角プラス)】【OR検索：「OR」or「|」(半角パイプ)】【NOT検索：「NOT」or「-」(半角マイナス)】 で単語をつなぐ')
         print('括弧で括って検索演算子の優先順位を変えることもできる')
+        print('ワードの前に属性(タイトル：[title] or [ttl], チャンネル：[channel] or [ch], 概要欄：[description] or [desc])を付けると、それについてのワードとして検索できる')
+        print('属性を付けない場合は、ワードはタイトルと概要欄の中で検索される')
+        print('(例) [title]○○+[ch]▵▵ OR □□ -[desc]⋄⋄ ⇒ タイトルに○○があるかつチャンネル名に▵▵がある、または、タイトルか概要欄に□□があるかつ概要欄に⋄⋄がない動画を検索')
         print('----------------------')
         searh_bar_origin = ''
         while searh_bar_origin == '':
@@ -134,37 +148,55 @@ while while_count > 0:
         for word in search_words:
             if (word == 'AND') or (word == '+'):
                 judge += ' * '
-                space = False 
+                space_flag = False
             elif (word == 'OR') or (word == '|'):
                 judge += ' + '
-                space = False
+                space_flag = False
             elif (word == 'NOT') or (word == '-'):
                 judge += ' * (not '
-                space = False
+                space_flag = False
                 close += 1
             elif word == '(':
-                if space:
+                if space_flag:
                   judge += ' * ('
                 else:
                   judge += ' ('
-                space = False
+                space_flag = False
             elif word == ')':
                 judge += ') '
-            else:
+            else:    
                 words = word_trans(word)
                 for word_i in words:
-                    word_judge[word_i] = True
+                    #それぞれに対応した辞書にwordの情報を入れる
+                    if word.find('[ttl]') == 0 or word.find('[title]') == 0:
+                        word_judge_ttl[word_i] = True
+                    elif word.find('[ch]') == 0 or word.find('[channel]') == 0:
+                        word_judge_ch[word_i] = True
+                    elif word.find('[desc]') == 0 or word.find('[description]') == 0:
+                        word_judge_desc[word_i] = True
+                    else:
+                        word_judge[word_i] = True
+                    #先頭に括弧を付ける。もし、space_flagがTrue、すなわち、検索ワードが空白区切りで連続していたら*を加える
                     if words[0] == word_i:
-                        if space:
+                        if space_flag:
                             judge += ' * ('
                         else:
                             judge += '('
-                    judge += "word_judge['" + word_i + "']"
+                    #judgeにそれぞれに対応した辞書の形で文字列として加えておく
+                    if word.find('[ttl]') == 0 or word.find('[title]') == 0:
+                        judge += "word_judge_ttl['" + word_i + "']"
+                    elif word.find('[ch]') == 0 or word.find('[channel]') == 0:
+                        judge += "word_judge_ch['" + word_i + "']"
+                    elif word.find('[desc]') == 0 or word.find('[description]') == 0:
+                        judge += "word_judge_desc['" + word_i + "']"
+                    else:
+                        judge += "word_judge['" + word_i + "']"
+                    #wordsが途中ならば+でつなぎ、最後ならば括弧を閉じる
                     if words[-1] == word_i:
                         judge += ')'
                     else:
                         judge += ' + '
-                space = True
+                space_flag = True
             if close > 0:
                 close += 1
                 if close == 3:
@@ -197,6 +229,24 @@ while while_count > 0:
                         word_judge[word] = True
                     else:
                         word_judge[word] = False
+                #動画のタイトルに検索ワードが含まれているか判定
+                for word in word_judge_ttl.keys():
+                    if word in item['snippet']['title']:
+                        word_judge_ttl[word] = True
+                    else:
+                        word_judge_ttl[word] = False
+                #動画のチャンネル名に検索ワードが含まれているか判定
+                for word in word_judge_ch.keys():
+                    if word in item['snippet']['videoOwnerChannelTitle']:
+                        word_judge_ch[word] = True
+                    else:
+                        word_judge_ch[word] = False
+                #動画の概要欄に検索ワードが含まれているか判定
+                for word in word_judge_desc.keys():
+                    if word in item['snippet']['description']:
+                        word_judge_desc[word] = True
+                    else:
+                        word_judge_desc[word] = False
 
                 #ヒットか判定する式にワードが入っているか/いないかの情報を入れて、数式にし、１以上ならばその動画はヒット
                 if eval(judge) > 0:

@@ -162,7 +162,7 @@ def data_req(method, playlist_id, api_key, nextPageToken):
     return target_body
 
 #動画情報の中に検索ワードが含まれているか判定する関数
-def word_in_movie(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc):
+def word_in_video(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc):
     #動画のタイトルか概要欄に検索ワードが含まれているか判定
     for word in word_judge.keys():
         if (word in item['snippet']['description']) or (word in item['snippet']['title']):
@@ -286,7 +286,7 @@ def main():
                 #1つ1つ動画を調べていく
                 for item in target_body['items']:
                     #ワードが含まれているかの情報を代入
-                    word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = word_in_movie(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc)
+                    word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = word_in_video(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc)
                     #ヒットか判定する式にワードが含まれているか/いないかの情報を入れて、数式にし、１以上ならばその動画はヒット
                     if eval(judge) > 0:
                         html_body_main += hit(**item)

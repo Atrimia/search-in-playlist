@@ -26,13 +26,16 @@ PLAYLIST_ID_URL = ''
 
 #検索の仕方の説明を表示する関数
 def explanation():
-    print('---検索演算子の説明---')
-    print('【AND検索：「 」(スペース) or「AND」or「+」(半角プラス)】【OR検索：「OR」or「|」(半角パイプ)】【NOT検索：「NOT」or「-」(半角マイナス)】 で単語をつなぐ')
-    print('括弧で括って検索演算子の優先順位を変えることもできる')
-    print('ワードの前に属性(タイトル：[title] or [ttl], チャンネル：[channel] or [ch], 概要欄：[description] or [desc])を付けると、それについてのワードとして検索できる')
-    print('属性を付けない場合は、ワードはタイトルと概要欄の中で検索される')
-    print('(例) [title]○○+[ch]▵▵ OR □□ -[desc]⋄⋄ ⇒ タイトルに○○があるかつチャンネル名に▵▵がある、または、タイトルか概要欄に□□があるかつ概要欄に⋄⋄がない動画を検索')
-    print('----------------------')
+    print('''
+---検索の仕方の説明---
+検索演算子【AND検索：「 」(スペース) or「AND」or「+」(半角プラス)】【OR検索：「OR」or「|」(半角パイプ)】【NOT検索：「NOT」or「-」(半角マイナス)】 で単語をつなぐ
+括弧で括って検索演算子の優先順位を変えることもできる
+ワードの前に属性(タイトル：[title] or [ttl], チャンネル：[channel] or [ch], 概要欄：[description] or [desc])を付けると、それについてのワードとして検索できる
+属性を付けない場合は、ワードはタイトルと概要欄の中で検索される
+(例) [title]○○+[ch]▵▵ OR □□ -[desc]⋄⋄ ⇒ タイトルに○○があるかつチャンネル名に▵▵がある、または、タイトルか概要欄に□□があるかつ概要欄に⋄⋄がない動画を検索
+また、「--all--」を入力すると、再生リスト内の全動画が検索結果に表示される
+----------------------
+    ''')
 
 #ひらがなとカタカナの相互変換、アルファベットの変換をした単語のリストを生成する関数
 def word_trans(word):
@@ -194,34 +197,35 @@ def word_in_video(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_de
 #動画の概要欄の料理の材料と分量が書いてあるところを抽出する関数
 def ingredient(*args):
     #下のワードで料理の材料と分量が書かれているところかを判定する
-    ok_key = ["大さじ", "大匙", "小さじ", "小匙", "適量", "個", "スプーン", "グラム"]
+    ok_key = ['大さじ', '大匙', '小さじ', '小匙', '適量', 'スプーン']
     #下のワードで料理の材料と分量が書かれていないところかを判定する
-    not_key = ["http"]
+    not_key = ['http']
     ingredient_list = []
     for part in args:
         key_judge = False
-        #料理の材料と分量が書かれているところかをグラム、センチメートルの表記があるかでも判定する
-        if re.findall("\dg|\dｇ|\dcm|\dｃｍ", part):
+        #料理の材料と分量が書かれているところかを単位の表記があるかでも判定する
+        if re.findall('\dg|\dｇ|\dcm|\dｃｍ|\dcc|\dｃｃ|\dml|\dｍｌ|\d本|\d個|\d枚|\d袋', part):
             key_judge = True
+        if key_judge:
+            for word in not_key:
+                if word in part:
+                    key_judge = False
         if not key_judge:
             for word in ok_key:
                 if word in part:
                     key_judge = True
-        for word in not_key:
-            if word in part:
-                key_judge = False
         if key_judge:
             ingredient_list.append(part)
     return ingredient_list
 
 #検索にヒットした時の処理をする関数
 def hit(**kwargs):
-    #概要欄の情報を \n\n or ーーが続く or --が続く or ー\nが続く or -\nが続く or ] で区切る
-    desc_part = re.split("\n\n|ーー+|--+|ー\n+|-\n+|]", kwargs['snippet']['description'])
+    #概要欄の情報を改行や「ーー」や「--」や「]」で区切る
+    desc_part = re.split('ー+\n+|-+\n+|\n\n+|\n\s+\n+|]\n+', kwargs['snippet']['description'])
     #区切ったところの単位で、料理の材料と分量について書かれているところかを判定する
     ing_list = ingredient(*desc_part)
-    ingredients = "<br>".join(ing_list)
-    ingredients = ingredients.replace("\n", "<br>")
+    ingredients = '<br>'.join(ing_list)
+    ingredients = ingredients.replace('\n', '<br>')
 
     #htmlで動画タイトル、チャンネル、動画のURL、料理の材料や分量の情報、サムネイルを表示する部分 
     html_body_part = '''
@@ -269,7 +273,7 @@ def html_file(body):
     </body>
     </html>
     '''.format('YouTube再生リスト内検索', body)
-    file_path = os.path.dirname(__file__) + '/search_in_playlist.html'
+    file_path = os.path.dirname(__file__) + '/search_in_playlist_cookingVer.html'
     with open( file_path, 'w', encoding='utf-8' ) as f: 
         f.write(str)
     return file_path
@@ -309,7 +313,8 @@ def main():
             search_bar_origin = ''
             while search_bar_origin == '':
                 search_bar_origin = input('検索ワード：')
-            judge, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = search_word_analysis(search_bar_origin)
+            if search_bar_origin != "--all--":
+                judge, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = search_word_analysis(search_bar_origin)
 
         try:
             while True:
@@ -320,13 +325,18 @@ def main():
 
                 #1つ1つ動画を調べていく
                 for item in target_body['items']:
-                    #ワードが含まれているかの情報を代入
-                    word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = word_in_video(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc)
-                    #ヒットか判定する式にワードが含まれているか/いないかの情報を入れて、数式にし、１以上ならばその動画はヒット
-                    if eval(judge) > 0:
+                    if search_bar_origin != "--all--":
+                        #ワードが含まれているかの情報を代入
+                        word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = word_in_video(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc)
+                        #ヒットか判定する式にワードが含まれているか/いないかの情報を入れて、数式にし、１以上ならばその動画はヒット
+                        if eval(judge) > 0:
+                            html_body_main += hit(**item)
+                            #ヒットした動画数を記録
+                            hit_count += 1
+                    #検索バーに「--all--」が入力されたら、再生リスト内の全動画をヒットさせる
+                    elif search_bar_origin == "--all--":
                         html_body_main += hit(**item)
-                        #ヒットした動画数を記録
-                        hit_count += 1    
+                        hit_count += 1
 
                 #再生リスト内にまだ調べていない動画があるか判定
                 if 'nextPageToken' in target_body:

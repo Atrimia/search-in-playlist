@@ -60,7 +60,7 @@ def word_trans(word):
     #リストの要素で重複しているのは消す
     return list(set(words))
 
-#入力された検索ワードを読み込んで、これから検索する上で必要な形に加工する
+#入力された検索ワードを読み込んで、これから検索する上で必要な形に加工する関数
 def search_word_analysis(search_bar_origin):
     #split()で分けるための加工
     search_bar = search_bar_origin.replace('(', ' ( ')
@@ -164,35 +164,35 @@ def data_req(method, playlist_id, api_key, nextPageToken):
     return target_body
 
 #動画情報の中に検索ワードが含まれているか判定する関数
-def word_in_video(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc):
+def word_in_video(item_snippet, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc):
     #動画のタイトルか概要欄に検索ワードが含まれているか判定
     for word in word_judge.keys():
-        if (word in item['snippet']['description']) or (word in item['snippet']['title']):
+        if (word in item_snippet['description']) or (word in item_snippet['title']):
             word_judge[word] = True
         else:
             word_judge[word] = False
     #動画のタイトルに検索ワードが含まれているか判定
     for word in word_judge_ttl.keys():
-        if word in item['snippet']['title']:
+        if word in item_snippet['title']:
             word_judge_ttl[word] = True
         else:
             word_judge_ttl[word] = False
     #動画のチャンネル名に検索ワードが含まれているか判定
     for word in word_judge_ch.keys():
-        if word in item['snippet']['videoOwnerChannelTitle']:
+        if word in item_snippet['videoOwnerChannelTitle']:
             word_judge_ch[word] = True
         else:
             word_judge_ch[word] = False
     #動画の概要欄に検索ワードが含まれているか判定
     for word in word_judge_desc.keys():
-        if word in item['snippet']['description']:
+        if word in item_snippet['description']:
             word_judge_desc[word] = True
         else:
             word_judge_desc[word] = False
     return word_judge, word_judge_ttl, word_judge_ch, word_judge_desc
 
 #検索にヒットした時の処理をする関数
-def hit(**kwargs):
+def hit(item_snippet):
     #htmlで動画タイトル、チャンネル、動画のURL、サムネイルを表示する部分 
     html_body_part = '''
     <article>
@@ -202,22 +202,22 @@ def hit(**kwargs):
     </article>
     <br>
     '''.format(title_colon = 'Title：',
-               url = 'https://www.youtube.com/watch?v='+str(kwargs['snippet']['resourceId']['videoId']),
-               title = str(kwargs['snippet']['title']),
-               channel = 'Channel：'+str(kwargs['snippet']['videoOwnerChannelTitle']),
-               img = kwargs['snippet']['thumbnails']['medium']['url'],
+               url = 'https://www.youtube.com/watch?v='+str(item_snippet['resourceId']['videoId']),
+               title = str(item_snippet['title']),
+               channel = 'Channel：'+str(item_snippet['videoOwnerChannelTitle']),
+               img = item_snippet['thumbnails']['medium']['url'],
                thumbnail = 'サムネイル'
                )
     return html_body_part
 
 #再生リストのタイトル、検索ワード、ヒット件数を入れたヘッダーを作成する関数
-def html_body_header(target_body, search_bar_origin, item_count, hit_count):
+def html_body_header(playlist_ttl, search_bar_origin, item_count, hit_count):
     header = '''
     <header>
     <h3>{}<br>{}</h3>
     <p>{}件中{}件ヒット</P>
     </header>
-    '''.format('再生リスト：' + str(target_body['items'][0]['snippet']['title']),
+    '''.format('再生リスト：' + str(playlist_ttl),
                 '検索ワード：' + search_bar_origin,
                 str(item_count),
                 str(hit_count))
@@ -288,10 +288,10 @@ def main():
                 #1つ1つ動画を調べていく
                 for item in target_body['items']:
                     #ワードが含まれているかの情報を代入
-                    word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = word_in_video(item, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc)
+                    word_judge, word_judge_ttl, word_judge_ch, word_judge_desc = word_in_video(item['snippet'], word_judge, word_judge_ttl, word_judge_ch, word_judge_desc)
                     #ヒットか判定する式にワードが含まれているか/いないかの情報を入れて、数式にし、１以上ならばその動画はヒット
                     if eval(judge) > 0:
-                        html_body_main += hit(**item)
+                        html_body_main += hit(item['snippet'])
                         #ヒットした動画数を記録
                         hit_count += 1    
 
@@ -301,7 +301,7 @@ def main():
                 else:
                     #playlistの情報を取得
                     target_body = data_req('playlists', playlist_id, api_key, nextPageToken)
-                    html_body = html_body_header(target_body, search_bar_origin, item_count, hit_count)
+                    html_body = html_body_header(target_body['items'][0]['snippet']['title'], search_bar_origin, item_count, hit_count)
                     html_body += html_body_main
                     #結果をhtmlファイルにする
                     html_file_path = html_file(html_body)

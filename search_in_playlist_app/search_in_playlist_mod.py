@@ -7,7 +7,6 @@ search_in_playlist_main.pyに使うモジュール
 import urllib.request
 import urllib.parse
 import json
-import os
 import re
 import webbrowser
 
@@ -246,7 +245,7 @@ def html_body_header(playlist_ttl, search_bar_origin, item_count, hit_count):
     return header
 
 #htmlのファイルを作成する関数
-def html_file(body, tab_num):
+def html_file(body, tab_num, data_dir):
     str = '''
     <!DOCTYPE html>
     <html>
@@ -259,13 +258,13 @@ def html_file(body, tab_num):
     </body>
     </html>
     '''.format(f'tab{tab_num}_YouTube再生リスト内検索', body)
-    file_path = os.path.dirname(__file__) + f'/search_in_playlist_tab{tab_num}.html'
+    file_path = f'{data_dir}/search_in_playlist_tab{tab_num}.html'
     with open( file_path, 'w', encoding='utf-8' ) as f: 
         f.write(str)
     return file_path
 
 #検索のメインとなる関数   
-def search_main(api_key, playlist_id, search_bar_origin, cooking, tab_num):
+def search_main(api_key, playlist_id, search_bar_origin, cooking, tab_num, data_dir):
     nextPageToken = ''
     item_count = 0
     hit_count = 0
@@ -307,7 +306,7 @@ def search_main(api_key, playlist_id, search_bar_origin, cooking, tab_num):
                 html_body = html_body_header(target_body['items'][0]['snippet']['title'], search_bar_origin, item_count, hit_count)
                 html_body += html_body_main
                 #結果をhtmlファイルにする
-                html_file_path = html_file(html_body, tab_num)
+                html_file_path = html_file(html_body, tab_num, data_dir)
                 #そのhtmlファイルをブラウザで開く
                 webbrowser.open(html_file_path)
                 break

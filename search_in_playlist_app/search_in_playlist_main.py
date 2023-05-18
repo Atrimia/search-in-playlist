@@ -13,6 +13,7 @@ PySimpleGUI is licensed under LGPL-3.0
 import os
 import re
 import PySimpleGUI as sg
+import appdirs
 from search_in_playlist_mod import search_main
 
 
@@ -20,11 +21,13 @@ from search_in_playlist_mod import search_main
 reg_dict ={}
 reg_tb = []
 reg_keys = []
+#ユーザーデータディレクトリのパスを取得
+data_dir = appdirs.user_data_dir()
+file_path = os.path.join(data_dir, 'reg_list.txt')
 
 #登録されているものが保存されたファイルを読み込む関数
 def r_reg_file():
     global reg_dict
-    file_path = os.path.dirname(__file__) + '/reg_list.txt'
     if os.path.isfile(file_path):  
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:           
@@ -36,7 +39,6 @@ def w_reg_file():
     str = ''
     for key, value in reg_dict.items():
         str += f'{key} {value}\n' 
-    file_path = os.path.dirname(__file__) + '/reg_list.txt'
     with open(file_path, 'w', encoding='utf-8') as f:
         f.write(str)
 
@@ -161,7 +163,7 @@ def main():
                     if values['-COOKING0-']:
                         cooking = True
                     #インポートした検索の処理をする関数を用いて検索、もし、エラーがあった時はエラーメッセージが返ってくる
-                    err_text = search_main(api_key, playlist_id, search_bar_origin, cooking, str(int(event[-2])+1))
+                    err_text = search_main(api_key, playlist_id, search_bar_origin, cooking, str(int(event[-2])+1), data_dir)
                 #APIキーが入力されていない場合    
                 if values[f'-API{event[-2]}-'] == '':
                     err_text += 'APIキーを入力してください\n'

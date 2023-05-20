@@ -30,10 +30,6 @@ def word_trans(word):
     words.append(''.join([katakana_to_hiragana_dict.get(c, c) for c in word]))
     #ひらがなからカタカナに変換
     words.append(''.join([hiragana_to_katakana_dict.get(c, c) for c in word]))
-    #アルファベットについての変換
-    words.append(word.capitalize())
-    words.append(word.upper())
-    words.append(word.lower())
     #リストの要素で重複しているのは消す
     return list(set(words))
 
@@ -80,15 +76,24 @@ def search_word_analysis(search_bar_origin):
         else:    
             words = word_trans(word)
             for word_i in words:
-                #それぞれに対応した辞書にwordの情報を入れる
-                if word.find('[TTL]') == 0 or word.find('[TITLE]') == 0:
-                    word_judge_ttl[word_i] = True
-                elif word.find('[CH]') == 0 or word.find('[CHANNEL]') == 0:
-                    word_judge_ch[word_i] = True
-                elif word.find('[DESC]') == 0 or word.find('[DESCRIPTION]') == 0:
-                    word_judge_desc[word_i] = True
-                else:
+                #wordに含まれているワード属性の数を記録、検索ルールに従っていればその数は0または1になる
+                num_of_attribute = len(re.findall('\[TTL\]|\[TITLE\]|\[CH\]|\[CHANNEL\]|\[DESC\]|\[DESCRIPTION\]', word))
+                if num_of_attribute == 1:
+                    #それぞれに対応した辞書にwordの情報を入れる
+                    if word.find('[TTL]') == 0 or word.find('[TITLE]') == 0:
+                        word_judge_ttl[word_i] = True
+                    elif word.find('[CH]') == 0 or word.find('[CHANNEL]') == 0:
+                        word_judge_ch[word_i] = True
+                    elif word.find('[DESC]') == 0 or word.find('[DESCRIPTION]') == 0:
+                        word_judge_desc[word_i] = True
+                    #ワード属性が検索ワードの前についていない場合
+                    else:
+                        return None
+                elif num_of_attribute == 0:
                     word_judge[word_i] = True
+                #ワード属性が複数含まれている場合
+                else:
+                    return None
                 #先頭に括弧を付ける。もし、space_flagがTrue、すなわち、検索ワードが空白区切りで連続していたら*を加える
                 if words[0] == word_i:
                     if space_flag:
@@ -151,27 +156,36 @@ def data_req(method, playlist_id, api_key, nextPageToken):
 
 #動画情報の中に検索ワードが含まれているか判定する関数
 def word_in_video(item_snippet, word_judge, word_judge_ttl, word_judge_ch, word_judge_desc):
+    #re.IGNORECASEフラグを設定することでアルファベットの大文字小文字の区別なく判定する
     #動画のタイトルか概要欄に検索ワードが含まれているか判定
     for word in word_judge.keys():
-        if (word in item_snippet['description']) or (word in item_snippet['title']):
+        #正規表現パターンに変換
+        word_re = re.escape(word)
+        if (re.findall(word_re, item_snippet['description'], re.IGNORECASE)) or (re.findall(word_re, item_snippet['title'], re.IGNORECASE)):
             word_judge[word] = True
         else:
             word_judge[word] = False
     #動画のタイトルに検索ワードが含まれているか判定
     for word in word_judge_ttl.keys():
-        if word in item_snippet['title']:
+        #正規表現パターンに変換
+        word_re = re.escape(word)
+        if re.findall(word_re, item_snippet['title'], re.IGNORECASE):
             word_judge_ttl[word] = True
         else:
             word_judge_ttl[word] = False
     #動画のチャンネル名に検索ワードが含まれているか判定
     for word in word_judge_ch.keys():
-        if word in item_snippet['videoOwnerChannelTitle']:
+        #正規表現パターンに変換
+        word_re = re.escape(word)
+        if re.findall(word_re, item_snippet['videoOwnerChannelTitle'], re.IGNORECASE):
             word_judge_ch[word] = True
         else:
             word_judge_ch[word] = False
     #動画の概要欄に検索ワードが含まれているか判定
     for word in word_judge_desc.keys():
-        if word in item_snippet['description']:
+        #正規表現パターンに変換
+        word_re = re.escape(word)
+        if re.findall(word_re, item_snippet['description'], re.IGNORECASE):
             word_judge_desc[word] = True
         else:
             word_judge_desc[word] = False
@@ -245,7 +259,7 @@ def html_body_header(playlist_ttl, search_bar_origin, item_count, hit_count):
     return header
 
 #htmlのファイルを作成する関数
-def html_file(body, tab_num, data_dir):
+def html_file(body, tab_num, folder_path):
     str = '''
     <!DOCTYPE html>
     <html>
@@ -258,13 +272,13 @@ def html_file(body, tab_num, data_dir):
     </body>
     </html>
     '''.format(f'tab{tab_num}_YouTube再生リスト内検索', body)
-    file_path = f'{data_dir}/search_in_playlist_tab{tab_num}.html'
+    file_path = f'{folder_path}/search_in_playlist_tab{tab_num}.html'
     with open( file_path, 'w', encoding='utf-8' ) as f: 
         f.write(str)
     return file_path
 
 #検索のメインとなる関数   
-def search_main(api_key, playlist_id, search_bar_origin, cooking, tab_num, data_dir):
+def search_main(api_key, playlist_id, search_bar_origin, cooking, tab_num, folder_path):
     nextPageToken = ''
     item_count = 0
     hit_count = 0
@@ -306,7 +320,7 @@ def search_main(api_key, playlist_id, search_bar_origin, cooking, tab_num, data_
                 html_body = html_body_header(target_body['items'][0]['snippet']['title'], search_bar_origin, item_count, hit_count)
                 html_body += html_body_main
                 #結果をhtmlファイルにする
-                html_file_path = html_file(html_body, tab_num, data_dir)
+                html_file_path = html_file(html_body, tab_num, folder_path)
                 #そのhtmlファイルをブラウザで開く
                 webbrowser.open(html_file_path)
                 break

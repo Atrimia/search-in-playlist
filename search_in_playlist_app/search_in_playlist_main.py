@@ -12,8 +12,8 @@ PySimpleGUI is licensed under LGPL-3.0
 
 import os
 import re
-import PySimpleGUI as sg
 import appdirs
+import PySimpleGUI as sg
 from search_in_playlist_mod import search_main
 
 
@@ -22,8 +22,13 @@ reg_dict ={}
 reg_tb = []
 reg_keys = []
 #ユーザーデータディレクトリのパスを取得
-data_dir = appdirs.user_data_dir()
-file_path = os.path.join(data_dir, 'reg_list.txt')
+data_dir_path = appdirs.user_data_dir()
+#ユーザーデータディレクトリ下にフォルダを作成しておく
+folder_path = os.path.join(data_dir_path, 'search_in_playlist_data')
+if not os.path.exists(folder_path):
+    os.mkdir(folder_path)
+#そのフォルダにファイルを入れる
+file_path = os.path.join(folder_path, 'reg_list.txt')
 
 #登録されているものが保存されたファイルを読み込む関数
 def r_reg_file():
@@ -32,7 +37,8 @@ def r_reg_file():
         with open(file_path, 'r', encoding='utf-8') as f:
             for line in f:           
                 item = line.rstrip().split()
-                reg_dict[item[0]] = item[1]
+                if len(item) == 2:
+                    reg_dict[item[0]] = item[1]
 
 #登録されているものをファイルに保存する関数
 def w_reg_file():
@@ -45,10 +51,9 @@ def w_reg_file():
 #reg_tbとreg_keysをreg_dictの内容に合わせて更新する関数
 def update_reg():
     global reg_tb, reg_keys
-    reg_tb, reg_keys = [], []
-    for key, value in reg_dict.items():
-        reg_tb.append([key, value])
-        reg_keys.append(key)
+    reg_tb = [[key, value] for key, value in reg_dict.items()]
+    reg_keys = list(reg_dict.keys())
+
     
 
 def main():
@@ -56,8 +61,6 @@ def main():
     text_size = (80, 1)
     main_text_font = ('meiryo', 20)
     head = ["        登録名        ", "          再生リストID or URL          "]
-    cooking = False
-    err_text = ''
 
     #以前登録されたものを読み込む
     r_reg_file()
@@ -75,7 +78,7 @@ def main():
                         [sg.T('再生リストID or URL', size=(17, 1), justification='center', font=main_text_font), sg.Input(k='-REG_URL-', expand_x=True, font=main_text_font)],
                         [sg.B('登録', k='-REG-', size=(6, 1), font=main_text_font)]]
     #リスト登録の削除部分をまとめたフレーム
-    del_frame_layout = [[sg.Listbox(reg_keys, k='-REG_LIST_DEL-', size=(47, 2), horizontal_scroll=True, select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE, font=('meiryo', 16)),
+    del_frame_layout = [[sg.Listbox(reg_keys, k='-REG_LIST_DEL-', size=(47, 3), horizontal_scroll=True, select_mode=sg.LISTBOX_SELECT_MODE_MULTIPLE, font=('meiryo', 16)),
                         sg.B('削除', k='-DEL-', size=(6, 1), font=main_text_font)]]
     
     #tab1,2,3のレイアウト
@@ -84,7 +87,7 @@ def main():
         [sg.T('APIキー', size=(17, 1), justification='center', font=main_text_font), sg.Input(k=f'-API{i}-', expand_x=True, font=main_text_font)],
         [sg.T('再生リストID or URL', size=(17, 1), justification='center', font=main_text_font), sg.Input(k=f'-PLAYLIST{i}-', expand_x=True, font=main_text_font)],
         [sg.T('(リストの中から選択)', size=(21, 1), justification='center', font=('meiryo', 16)), 
-        sg.Listbox(reg_keys, size=(17, 2), k=f'-REG_LIST{i}-', bind_return_key=True, horizontal_scroll=True, expand_x=True, font=('meiryo', 16))],
+        sg.Listbox(reg_keys, size=(17, 3), k=f'-REG_LIST{i}-', bind_return_key=True, horizontal_scroll=True, expand_x=True, font=('meiryo', 16))],
         [sg.Input(k=f'-SEARCH{i}-', expand_x=True, size=(6, 1), font=main_text_font), sg.B('検索', k=f'-START{i}-', size=(6, 1), font=main_text_font)],
         [sg.Frame('ワード属性', attribute_frame_layout[i], title_location=sg.TITLE_LOCATION_TOP, 
                 vertical_alignment='top', element_justification='center', grab=True), 
@@ -115,7 +118,7 @@ def main():
         [sg.T('【 AND検索：「 」(スペース) or「AND」or「+」(半角プラス) 】', size=text_size)],
         [sg.T('【 OR検索：「OR」or「|」(半角パイプ) 】', size=text_size)],
         [sg.T('【 NOT検索：「NOT」or「-」(半角マイナス) 】', size=text_size)],
-        [sg.T('括弧で括って検索演算子の優先順位を変えることもできる', size=text_size)],
+        [sg.T('括弧()で括って検索演算子の優先順位を変えることもできる', size=text_size)],
         [sg.T('===使用例===', size=text_size)],
         [sg.T('[TITLE]○○+[CH]△△ OR □□ -[DESC]⋄⋄ ', size=text_size)],
         [sg.T('⇩', size=text_size, pad=(200, 0))],
@@ -138,6 +141,9 @@ def main():
     #イベントループ
     while True:
         event, values = window.read()
+        cooking = False
+        #エラーの時に、表示するエラー文を格納する変数
+        err_text = ''
 
         #ウインドウのバツボタンを押した場合
         if event == None:
@@ -145,34 +151,27 @@ def main():
 
         #テーブルのセルをクリックする以外はeventは1つの文字列を返す
         if type(event) != tuple:
-
-            #エラーの時に、表示するエラー文を格納する変数
-            err_text = ''
-
             #tab1,2,3で検索のボタンを押した場合
             if event.startswith('-START'):
+                #両端の空白を取り除いて、APIキーと再生リストIDを取り出す
+                api_key = re.sub(r'^\s+|\s+$', '', values[f'-API{event[-2]}-'])
+                playlist_id_url = re.sub(r'^\s+|\s+$', '', values[f'-PLAYLIST{event[-2]}-'])
                 #APIキーと再生リストID,URLと検索バーが入力されている場合
-                if values[f'-API{event[-2]}-'] and values[f'-PLAYLIST{event[-2]}-'] and values[f'-SEARCH{event[-2]}-']:
-                    #両端の空白を取り除いて、APIキーと再生リストIDを取り出す
-                    api_key = re.sub(r'^\s+|\s+$', '', values[f'-API{event[-2]}-'])
-                    playlist_id_url = re.sub(r'^\s+|\s+$', '', values[f'-PLAYLIST{event[-2]}-'])
+                if api_key and playlist_id_url and values[f'-SEARCH{event[-2]}-']:
                     playlist_id = playlist_id_url.replace('https://www.youtube.com/playlist?list=','')
                     #検索バーの内容を取り出す
                     search_bar_origin = values[f'-SEARCH{event[-2]}-']
                     #normal versionか、cooking versionか、どちらなのかを受け取る
-                    if values['-COOKING0-']:
+                    if values[f'-COOKING{event[-2]}-']:
                         cooking = True
                     #インポートした検索の処理をする関数を用いて検索、もし、エラーがあった時はエラーメッセージが返ってくる
-                    err_text = search_main(api_key, playlist_id, search_bar_origin, cooking, str(int(event[-2])+1), data_dir)
+                    err_text = search_main(api_key, playlist_id, search_bar_origin, cooking, str(int(event[-2])+1), folder_path)
                 #APIキーが入力されていない場合    
-                if values[f'-API{event[-2]}-'] == '':
+                if api_key == '':
                     err_text += 'APIキーを入力してください\n'
                 #再生リストID,URLが入力されていない場合
-                if values[f'-PLAYLIST{event[-2]}-'] == '':
+                if playlist_id_url == '':
                     err_text += '再生リストID or URLを入力してください\n'
-                #エラーがあった場合、ポップアップを出す
-                if err_text:
-                    sg.popup_error(err_text, title='Error', grab_anywhere=True)
 
             #tab1,2,3でワード属性のボタンが押された場合        
             elif event.startswith('-TTL') or event.startswith('-CH') or event.startswith('-DESC'):
@@ -209,13 +208,19 @@ def main():
 
             #リスト登録で登録ボタンが押された場合
             elif event == '-REG-':
+                #両端の空白を取り除いて、登録名と再生リストID,URLを取り出す
+                reg_name = re.sub(r'^\s+|\s+$', '', values['-REG_NAME-'])
+                reg_url = re.sub(r'^\s+|\s+$', '', values['-REG_URL-'])
                 #登録名と再生リストID,URLが入力されている場合
-                if values['-REG_NAME-'] and values['-REG_URL-']:
-                    #両端の空白を取り除いて、登録名と再生リストID,URLを取り出す
-                    reg_name = re.sub(r'^\s+|\s+$', '', values['-REG_NAME-'])
-                    reg_url = re.sub(r'^\s+|\s+$', '', values['-REG_URL-'])
+                if reg_name and reg_url:
                     #登録名と再生リストの内容の中に空白を含んでいない場合、すなわち、登録が正常に行われる場合
-                    if (not re.findall(' |　', reg_name)) and (not re.findall(' |　', reg_url)):    
+                    if (not re.findall(' |　', reg_name)) and (not re.findall(' |　', reg_url)):
+                        #登録名が重複している場合、内容を置き換えるかの確認
+                        if reg_name in reg_keys:
+                            ans = sg.popup_yes_no('同じ登録名のものがあります\n内容を置き換えますか？', title='登録名が重複')
+                            if ans == 'No':
+                                sg.popup_ok('登録名を変更してください')
+                                continue
                         reg_dict[reg_name] = reg_url
                         update_reg()
                         for i in range(3):
@@ -231,17 +236,14 @@ def main():
                     if re.findall(' |　', reg_url):
                         err_text += '再生リストID or URLの中に空白を入れないでください\n'
                 #登録名が入力されていない場合
-                if values['-REG_NAME-'] == '':
+                if reg_name == '':
                     err_text += '登録名を入力してください\n'
                 #再生リストID,URLが入力されていない場合
-                if values['-REG_URL-'] == '':
+                if reg_url == '':
                     err_text += '再生リストID or URLを入力してください\n'
-                #エラーがあった場合、ポップアップを出す
-                if err_text:
-                    sg.popup_error(err_text, title='Error', grab_anywhere=True)
                 
             #リスト登録で削除ボタンが押された場合    
-            elif event == '-DEL-':
+            elif event == '-DEL-' and values['-REG_LIST_DEL-']:
                 del_text = '下記の登録を削除しますか？\n'
                 for del_item in values['-REG_LIST_DEL-']:
                     del_text += f'{del_item}\n'
@@ -262,10 +264,15 @@ def main():
          #テーブルのセルをクリックした場合、それについての内容をポップアップで表示する
         else:
             row, col = event[2]
-            if col == 0:
-                sg.popup(f'登録名：\n{reg_tb[row][col]}', title='登録名', grab_anywhere=True)
-            elif col == 1:
-                sg.popup(f'再生リストID or URL：\n{reg_tb[row][col]}', title='再生リストID or URL', grab_anywhere=True)
+            if row >= 0:
+                if col == 0:
+                    sg.popup(f'登録名：\n{reg_tb[row][col]}', title='登録名', grab_anywhere=True)
+                elif col == 1:
+                    sg.popup(f'再生リストID or URL：\n{reg_tb[row][col]}', title='再生リストID or URL', grab_anywhere=True)
+        
+        #エラーがあった場合、ポップアップを出す
+        if err_text:
+            sg.popup_error(err_text, title='Error', grab_anywhere=True)
 
     #イベントループを抜けたので、登録されているものの内容をファイルに書き込み、保存して、ウインドウを閉じる
     w_reg_file()
